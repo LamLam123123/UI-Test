@@ -1919,6 +1919,15 @@
           bgVideo.currentTime = randomTime;
           bgVideo.play().catch(() => { });
           stallCount++;
+
+          // After seeking, the browser often auto-pauses the video.
+          // Wait 3 seconds then force resume if it's still paused.
+          setTimeout(() => {
+            if (bgVideo.paused && !bgVideo.ended && bgVideo.style.display !== 'none') {
+              console.log('[StallRecovery] Video paused after seek — forcing resume');
+              bgVideo.play().catch(() => { });
+            }
+          }, 3000);
         }
 
         // Method 1: Polling — check if currentTime advances
