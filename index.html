@@ -61,7 +61,8 @@
       overflow: hidden;
     }
 
-    #bg-video, #bg-image {
+    #bg-video,
+    #bg-image {
       position: absolute;
       top: 0;
       left: 0;
@@ -1240,7 +1241,7 @@
       apiKey: "AIzaSyCbHlLAuQ5SX9L4MgfbLRoXGIO7FYxvdLw",
       authDomain: "lamduonq-9a629.firebaseapp.com",
       // Đã sửa lại đường dẫn theo máy chủ Singapore của bạn:
-      databaseURL: "https://lamduonq-9a629-default-rtdb.asia-southeast1.firebasedatabase.app", 
+      databaseURL: "https://lamduonq-9a629-default-rtdb.asia-southeast1.firebasedatabase.app",
       projectId: "lamduonq-9a629",
       storageBucket: "lamduonq-9a629.firebasestorage.app",
       messagingSenderId: "678141613884",
@@ -1509,7 +1510,7 @@
     function applyBackground(url) {
       const bgImage = document.getElementById('bg-image');
       const isImage = url.match(/\.(jpeg|jpg|gif|png|webp)$/i);
-      
+
       if (isImage) {
         bgVideo.style.display = 'none';
         bgVideo.pause();
@@ -1524,7 +1525,7 @@
         if (source.src !== url) {
           source.src = url;
           bgVideo.load();
-          bgVideo.play().catch(() => {});
+          bgVideo.play().catch(() => { });
         }
       }
     }
@@ -1916,7 +1917,7 @@
           const randomTime = minT + Math.random() * (maxT - minT);
           console.log(`[StallRecovery] Video stalled — seeking to ${randomTime.toFixed(1)}s / ${bgVideo.duration.toFixed(1)}s`);
           bgVideo.currentTime = randomTime;
-          bgVideo.play().catch(() => {});
+          bgVideo.play().catch(() => { });
           stallCount++;
         }
 
@@ -1968,5 +1969,6 @@
     renderPlaylist();
   </script>
 </body>
+
 
 </html>
