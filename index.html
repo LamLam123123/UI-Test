@@ -69,6 +69,12 @@
       height: 100%;
       object-fit: cover;
       filter: brightness(0.85) saturate(1.3);
+      /* GPU acceleration hints — offloads video decode & compositing to GPU */
+      will-change: transform, opacity;
+      transform: translateZ(0);
+      -webkit-transform: translateZ(0);
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
     }
 
     /* Color mesh gradient fallback/enhancement overlay */
@@ -1887,6 +1893,74 @@
       // Load first song
       loadTrack(0);
       playTrack();
+
+      // ==========================================
+      // VIDEO STALL RECOVERY SYSTEM
+      // ==========================================
+      // Monitors the background video. If playback stalls (currentTime stops
+      // advancing while the video should be playing), automatically seeks to
+      // a random position to unstick it.
+      (function initVideoStallRecovery() {
+        let lastVideoTime = -1;
+        let stallCount = 0;
+        let waitingTimer = null;
+        const POLL_INTERVAL = 1500;   // check every 1.5s
+        const WAITING_TIMEOUT = 2000; // if 'waiting' event lasts > 2s, force seek
+
+        function seekToRandomPosition() {
+          if (!bgVideo || !bgVideo.duration || bgVideo.duration === Infinity) return;
+          // Pick a random position between 10% and 90% of the video
+          const minT = bgVideo.duration * 0.1;
+          const maxT = bgVideo.duration * 0.9;
+          const randomTime = minT + Math.random() * (maxT - minT);
+          console.log(`[StallRecovery] Video stalled — seeking to ${randomTime.toFixed(1)}s / ${bgVideo.duration.toFixed(1)}s`);
+          bgVideo.currentTime = randomTime;
+          bgVideo.play().catch(() => {});
+          stallCount++;
+        }
+
+        // Method 1: Polling — check if currentTime advances
+        setInterval(() => {
+          if (!bgVideo || bgVideo.paused || bgVideo.ended) return;
+          if (bgVideo.style.display === 'none') return;
+
+          const ct = bgVideo.currentTime;
+          if (ct === lastVideoTime && ct > 0) {
+            // currentTime hasn't changed since last check — video is stuck
+            seekToRandomPosition();
+          }
+          lastVideoTime = ct;
+        }, POLL_INTERVAL);
+
+        // Method 2: 'waiting' event — browser is buffering
+        bgVideo.addEventListener('waiting', () => {
+          clearTimeout(waitingTimer);
+          waitingTimer = setTimeout(() => {
+            // Still waiting after timeout — force seek
+            if (!bgVideo.paused && !bgVideo.ended) {
+              console.log('[StallRecovery] Buffering too long — seeking to random position');
+              seekToRandomPosition();
+            }
+          }, WAITING_TIMEOUT);
+        });
+
+        // Clear waiting timer if playback resumes
+        bgVideo.addEventListener('playing', () => {
+          clearTimeout(waitingTimer);
+        });
+
+        // Method 3: 'stalled' event — network stall
+        bgVideo.addEventListener('stalled', () => {
+          console.log('[StallRecovery] Network stall detected');
+          setTimeout(() => {
+            if (!bgVideo.paused && !bgVideo.ended && bgVideo.readyState < 3) {
+              seekToRandomPosition();
+            }
+          }, WAITING_TIMEOUT);
+        });
+
+        console.log('[StallRecovery] Video stall recovery system initialized');
+      })();
     });
 
     // Pre-render list immediately
