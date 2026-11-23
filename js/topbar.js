@@ -2105,6 +2105,8 @@ document.addEventListener('DOMContentLoaded', () => {
         (v.deviceOs && v.deviceOs.toLowerCase().includes(q)) ||
         (v.browser && v.browser.toLowerCase().includes(q)) ||
         (v.city && v.city.toLowerCase().includes(q)) ||
+        (v.address && v.address.toLowerCase().includes(q)) ||
+        (v.district && v.district.toLowerCase().includes(q)) ||
         (v.region && v.region.toLowerCase().includes(q)) ||
         (v.country && v.country.toLowerCase().includes(q)) ||
         (v.isp && v.isp.toLowerCase().includes(q))
@@ -2118,11 +2120,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let html = '';
     filtered.forEach((v, idx) => {
-      const flag = v.flag || '🌐';
-      const city = v.city || 'Không rõ';
-      const region = v.region || '';
-      const country = v.country || 'Việt Nam';
-      const locDisplay = `${flag} ${city}${region && region !== city ? ', ' + region : ''} (${country})`;
+      const isGps = v.locationSource === 'GPS';
+      const sourceBadge = isGps
+        ? `<span class="loc-source-badge loc-gps" title="Vị trí GPS thực tế">📡 GPS (${v.gpsAccuracy ? '±' + v.gpsAccuracy + 'm' : 'Chuẩn'})</span>`
+        : `<span class="loc-source-badge loc-ip" title="Vị trí ước tính từ trạm phát sóng nhà mạng">🌐 IP (Ước tính)</span>`;
+
+      let locationText = '';
+      if (isGps && v.address) {
+        locationText = `📍 ${v.address}`;
+      } else {
+        const flag = v.flag || '🌐';
+        const city = v.city || 'Không rõ';
+        const region = v.region || '';
+        const country = v.country || 'Việt Nam';
+        locationText = `${flag} ${city}${region && region !== city ? ', ' + region : ''} (${country})`;
+      }
 
       const isMobile = v.deviceType === 'Mobile' || v.device === 'Mobile' || v.device === 'Điện thoại';
       const devIcon = v.deviceIcon || (isMobile ? '📱' : '💻');
@@ -2136,11 +2148,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (v.latitude && v.longitude) {
         mapUrl = `https://www.google.com/maps?q=${v.latitude},${v.longitude}`;
       } else if (v.city && v.city !== 'Không rõ') {
-        mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(v.city + ', ' + country)}`;
+        mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(v.city + ', ' + (v.country || 'Việt Nam'))}`;
       }
 
       const mapBtn = mapUrl
-        ? `<a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="ip-map-link" title="Xem vị trí ước tính trên Google Maps">📍 Bản đồ</a>`
+        ? `<a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="ip-map-link" title="Xem vị trí trên Google Maps">📍 Bản đồ</a>`
         : `<span style="color:var(--lazer-text-muted); font-size:11px;">--</span>`;
 
       html += `
@@ -2163,8 +2175,9 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
           </td>
           <td>
-            <div class="ip-location-col" title="${city}, ${region}, ${country}">
-              ${locDisplay}
+            <div class="ip-location-col">
+              <div class="loc-title" title="${locationText}">${locationText}</div>
+              <div class="loc-source">${sourceBadge}</div>
             </div>
           </td>
           <td>

@@ -4125,3 +4125,36 @@ body.sb-open .music-lyrics-bubble,
   font-style: italic;
   font-size: 13px;
 }
+
+.loc-source-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-top: 3px;
+  white-space: nowrap;
+}
+
+.loc-gps {
+  background: rgba(0, 230, 118, 0.2);
+  color: #00e676;
+  border: 1px solid rgba(0, 230, 118, 0.4);
+  box-shadow: 0 0 8px rgba(0, 230, 118, 0.2);
+}
+
+.loc-ip {
+  background: rgba(255, 204, 0, 0.15);
+  color: var(--lazer-yellow);
+  border: 1px solid rgba(255, 204, 0, 0.3);
+}
+
+.loc-title {
+  white-space: nowrap;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #fff;
+  font-weight: 500;
+}
