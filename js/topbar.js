@@ -2100,16 +2100,19 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!q) return true;
       return (
         (v.ip && v.ip.toLowerCase().includes(q)) ||
+        (v.deviceId && v.deviceId.toLowerCase().includes(q)) ||
+        (v.shortId && v.shortId.toLowerCase().includes(q)) ||
+        (v.deviceOs && v.deviceOs.toLowerCase().includes(q)) ||
+        (v.browser && v.browser.toLowerCase().includes(q)) ||
         (v.city && v.city.toLowerCase().includes(q)) ||
         (v.region && v.region.toLowerCase().includes(q)) ||
         (v.country && v.country.toLowerCase().includes(q)) ||
-        (v.isp && v.isp.toLowerCase().includes(q)) ||
-        (v.device && v.device.toLowerCase().includes(q))
+        (v.isp && v.isp.toLowerCase().includes(q))
       );
     });
 
     if (filtered.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" class="ov-ip-empty">${cachedVisitors.length === 0 ? 'Chưa có dữ liệu IP nào được ghi nhận.' : 'Không tìm thấy IP nào khớp với từ khóa tìm kiếm.'}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" class="ov-ip-empty">${cachedVisitors.length === 0 ? 'Chưa có máy nào truy cập.' : 'Không tìm thấy máy/IP nào khớp với từ khóa tìm kiếm.'}</td></tr>`;
       return;
     }
 
@@ -2121,10 +2124,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const country = v.country || 'Việt Nam';
       const locDisplay = `${flag} ${city}${region && region !== city ? ', ' + region : ''} (${country})`;
 
-      const isMobile = v.device === 'Mobile' || v.device === 'Điện thoại';
-      const deviceBadge = isMobile
-        ? '<span class="ip-badge ip-badge-mobile">📱 Mobile</span>'
-        : '<span class="ip-badge ip-badge-pc">💻 PC</span>';
+      const isMobile = v.deviceType === 'Mobile' || v.device === 'Mobile' || v.device === 'Điện thoại';
+      const devIcon = v.deviceIcon || (isMobile ? '📱' : '💻');
+      const devOs = v.deviceOs || v.device || (isMobile ? 'Mobile' : 'PC');
+      const shortId = v.shortId || (v.deviceId ? v.deviceId.replace('dev_', '').slice(0, 6).toUpperCase() : 'DEVICE');
 
       const timeText = v.lastVisitTime || (v.lastVisit ? new Date(v.lastVisit).toLocaleString('vi-VN') : 'Mới đây');
 
@@ -2144,8 +2147,19 @@ document.addEventListener('DOMContentLoaded', () => {
         <tr>
           <td style="color:var(--lazer-text-muted); font-size:12px;">${idx + 1}</td>
           <td>
-            <div class="ip-address-col">
+            <div class="dev-cell">
+              <div class="dev-name">${devIcon} ${devOs}</div>
+              <div class="dev-meta">
+                <span class="dev-id-tag" title="Mã định danh máy duy nhất">#${shortId}</span>
+                ${v.browser ? `<span class="dev-browser-tag">${v.browser}</span>` : ''}
+                ${v.screen ? `<span class="dev-screen-tag">${v.screen}</span>` : ''}
+              </div>
+            </div>
+          </td>
+          <td>
+            <div class="ip-cell">
               <span class="ip-text">${v.ip || '---'}</span>
+              <span class="ip-public-badge">Public IP</span>
             </div>
           </td>
           <td>
@@ -2156,8 +2170,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <td>
             <span class="ip-isp-text" title="${v.isp || ''}">${v.isp || 'Không rõ'}</span>
           </td>
-          <td>${deviceBadge}</td>
-          <td><span class="ip-hits-badge">${v.visitCount || 1}</span></td>
+          <td style="text-align: center;"><span class="ip-hits-badge">${v.visitCount || 1}</span></td>
           <td style="font-size:12px; color:var(--lazer-text-muted);">${timeText}</td>
           <td style="text-align: center;">${mapBtn}</td>
         </tr>

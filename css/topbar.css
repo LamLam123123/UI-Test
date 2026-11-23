@@ -3978,11 +3978,71 @@ body.sb-open .music-lyrics-bubble,
   background: rgba(255, 255, 255, 0.04);
 }
 
+.dev-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dev-name {
+  font-weight: 700;
+  font-size: 13px;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.dev-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.dev-id-tag {
+  font-family: monospace;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255, 102, 170, 0.2);
+  color: var(--lazer-pink);
+  border: 1px solid rgba(255, 102, 170, 0.35);
+  font-weight: 700;
+}
+
+.dev-browser-tag {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(0, 210, 255, 0.15);
+  color: var(--lazer-cyan);
+  border: 1px solid rgba(0, 210, 255, 0.3);
+}
+
+.dev-screen-tag {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.ip-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .ip-text {
   font-family: monospace;
   font-size: 13px;
-  color: var(--lazer-pink);
-  font-weight: 600;
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.ip-public-badge {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--lazer-green);
+  letter-spacing: 0.5px;
 }
 
 .ip-location-col {

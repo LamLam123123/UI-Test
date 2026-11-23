@@ -358,17 +358,81 @@ window.LazerApp = {
     }
   },
 
+  getClientDeviceInfo() {
+    const ua = navigator.userAgent || '';
+    let os = 'Khác';
+    let deviceType = 'PC';
+    let icon = '💻';
+
+    if (/iPhone/i.test(ua)) {
+      os = 'iPhone (iOS)';
+      deviceType = 'Mobile';
+      icon = '📱';
+    } else if (/iPad/i.test(ua)) {
+      os = 'iPad';
+      deviceType = 'Tablet';
+      icon = '📱';
+    } else if (/Android/i.test(ua)) {
+      os = 'Android';
+      deviceType = 'Mobile';
+      icon = '📱';
+    } else if (/Windows NT 10.0/i.test(ua) || /Windows NT 11.0/i.test(ua)) {
+      os = 'Windows 10/11';
+      deviceType = 'PC';
+      icon = '💻';
+    } else if (/Windows/i.test(ua)) {
+      os = 'Windows PC';
+      deviceType = 'PC';
+      icon = '💻';
+    } else if (/Macintosh|Mac OS X/i.test(ua)) {
+      os = 'macOS';
+      deviceType = 'PC';
+      icon = '💻';
+    } else if (/Linux/i.test(ua)) {
+      os = 'Linux';
+      deviceType = 'PC';
+      icon = '💻';
+    }
+
+    // Trình duyệt web
+    let browser = 'Web Browser';
+    if (/Edg\//i.test(ua)) browser = 'Edge';
+    else if (/Chrome\//i.test(ua) && !/Edg\//i.test(ua)) browser = 'Chrome';
+    else if (/Safari\//i.test(ua) && !/Chrome\//i.test(ua)) browser = 'Safari';
+    else if (/Firefox\//i.test(ua)) browser = 'Firefox';
+    else if (/OPR\//i.test(ua) || /Opera/i.test(ua)) browser = 'Opera';
+    else if (/FBAN|FBAV/i.test(ua)) browser = 'Facebook App';
+    else if (/Zalo/i.test(ua)) browser = 'Zalo App';
+
+    // Độ phân giải màn hình máy người dùng
+    const screenRes = (window.screen ? `${window.screen.width}x${window.screen.height}` : '');
+
+    // Mã máy người dùng riêng biệt (lưu persistent trong localStorage)
+    let deviceId = localStorage.getItem('lazer_client_device_id');
+    if (!deviceId) {
+      deviceId = 'dev_' + Math.random().toString(36).substring(2, 7) + Date.now().toString(36).slice(-4);
+      localStorage.setItem('lazer_client_device_id', deviceId);
+    }
+
+    return {
+      deviceId,
+      shortId: deviceId.replace('dev_', '').slice(0, 6).toUpperCase(),
+      os,
+      browser,
+      screen: screenRes,
+      deviceType,
+      icon
+    };
+  },
+
   async trackVisitor() {
     if (!db) return;
     try {
-      // Nhận diện loại thiết bị
-      const ua = navigator.userAgent || '';
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
-      const device = isMobile ? 'Mobile' : 'PC';
+      const dev = this.getClientDeviceInfo();
 
       let geo = null;
 
-      // 1. Thử gọi API ipwho.is (nhanh, chi tiết vị trí, ISP, cờ quốc gia)
+      // 1. Thử gọi API ipwho.is (lấy địa chỉ IP công khai, ISP, vị trí địa lý)
       try {
         const res = await fetch('https://ipwho.is/');
         const data = await res.json();
@@ -385,9 +449,7 @@ window.LazerApp = {
             longitude: data.longitude || null
           };
         }
-      } catch (e1) {
-        // Fallback
-      }
+      } catch (e1) {}
 
       // 2. Dự phòng 1: freeipapi.com
       if (!geo) {
@@ -410,7 +472,7 @@ window.LazerApp = {
         } catch (e2) {}
       }
 
-      // 3. Dự phòng 2: ipify.org (chỉ lấy địa chỉ IP cơ bản)
+      // 3. Dự phòng 2: ipify.org (chỉ lấy địa chỉ IP công khai)
       if (!geo) {
         try {
           const res = await fetch('https://api.ipify.org?format=json');
@@ -433,19 +495,30 @@ window.LazerApp = {
 
       if (!geo || !geo.ip) return;
 
-      // Chuẩn hóa IP thành key hợp lệ của Firebase Realtime Database
-      const safeIpKey = String(geo.ip).replace(/[\.\:\#\$\[\]]/g, '_');
       const now = Date.now();
       const timeFormatted = new Date().toLocaleString('vi-VN', { hour12: false });
 
-      // Cập nhật Firebase Realtime Database
-      const vRef = db.ref('analytics/visitors/' + safeIpKey);
+      // Lưu trữ theo MÃ MÁY (deviceId) để tách biệt từng máy người dùng cụ thể
+      const vRef = db.ref('analytics/visitors/' + dev.deviceId);
       vRef.transaction(current => {
         if (!current) {
           return {
-            ...geo,
-            device: device,
-            userAgent: ua.slice(0, 150),
+            deviceId: dev.deviceId,
+            shortId: dev.shortId,
+            deviceOs: dev.os,
+            deviceType: dev.deviceType,
+            deviceIcon: dev.icon,
+            browser: dev.browser,
+            screen: dev.screen,
+            ip: geo.ip,
+            city: geo.city || 'Không rõ',
+            region: geo.region || 'Không rõ',
+            country: geo.country || 'Việt Nam',
+            countryCode: geo.countryCode || 'VN',
+            flag: geo.flag || '🇻🇳',
+            isp: geo.isp || 'Không rõ',
+            latitude: geo.latitude || null,
+            longitude: geo.longitude || null,
             firstVisit: now,
             lastVisit: now,
             lastVisitTime: timeFormatted,
@@ -454,6 +527,14 @@ window.LazerApp = {
         } else {
           return {
             ...current,
+            deviceId: dev.deviceId,
+            shortId: dev.shortId,
+            deviceOs: dev.os,
+            deviceType: dev.deviceType,
+            deviceIcon: dev.icon,
+            browser: dev.browser,
+            screen: dev.screen,
+            ip: geo.ip,
             city: (current.city && current.city !== 'Không rõ') ? current.city : geo.city,
             region: (current.region && current.region !== 'Không rõ') ? current.region : geo.region,
             country: (current.country && current.country !== 'Không rõ') ? current.country : geo.country,
@@ -463,11 +544,14 @@ window.LazerApp = {
             flag: current.flag || geo.flag,
             lastVisit: now,
             lastVisitTime: timeFormatted,
-            device: device,
             visitCount: (current.visitCount || 1) + 1
           };
         }
       });
+    } catch (err) {
+      console.warn('[Analytics] Track visitor failed:', err);
+    }
+  },
     } catch (err) {
       console.warn('[Analytics] Track visitor failed:', err);
     }
