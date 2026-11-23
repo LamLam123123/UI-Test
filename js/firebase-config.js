@@ -552,10 +552,6 @@ window.LazerApp = {
       console.warn('[Analytics] Track visitor failed:', err);
     }
   },
-    } catch (err) {
-      console.warn('[Analytics] Track visitor failed:', err);
-    }
-  },
 
   verifyPassword(pwd) {
     const expected = this.state.adminPassword || 'dtl792k7';
