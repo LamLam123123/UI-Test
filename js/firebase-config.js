@@ -545,39 +545,16 @@ window.LazerApp = {
         }
       });
 
-      // ===== BƯỚC 2: Quản lý quyền truy cập GPS =====
-      let hasGpsPerm = localStorage.getItem('lazer_gps_allowed') === 'true';
-      if (!hasGpsPerm && navigator.permissions && navigator.permissions.query) {
-        try {
-          const p = await navigator.permissions.query({ name: 'geolocation' });
-          if (p.state === 'granted') {
-            hasGpsPerm = true;
-            localStorage.setItem('lazer_gps_allowed', 'true');
-          }
-        } catch (e) {}
-      }
-
-      // Nếu đã ĐỒNG Ý trước đó -> Tự động lấy GPS ngầm, KHÔNG hỏi nữa!
-      if (hasGpsPerm) {
-        this.requestGpsLocation(true);
-      } else {
-        // Nếu CHƯA ĐỒNG Ý -> kiểm tra xem trong phiên này đã bấm 'Để sau' chưa
-        if (!sessionStorage.getItem('lazer_gps_session_skipped')) {
-          setTimeout(() => {
-            const card = document.getElementById('gps-prompt-card');
-            if (card) {
-              card.style.display = 'block';
-              setTimeout(() => card.classList.add('visible'), 50);
-            }
-          }, 1200);
-        }
-      }
+      // ===== BƯỚC 2: Tự động để trình duyệt hỏi quyền truy cập GPS gốc =====
+      // Nếu trình duyệt chưa được cấp quyền (hoặc người dùng tắt thông báo), trình duyệt tự động hiện hộp thoại gốc khi vào web.
+      // Nếu đã đồng ý rồi, trình duyệt tự lấy tọa độ im lặng mà không hỏi lại nữa.
+      this.requestGpsLocation();
     } catch (err) {
       console.warn('[Analytics] Track visitor failed:', err);
     }
   },
 
-  async requestGpsLocation(isSilent = false) {
+  async requestGpsLocation() {
     if (!db || !navigator.geolocation) return;
     try {
       const pos = await new Promise((resolve, reject) => {
@@ -587,9 +564,6 @@ window.LazerApp = {
           maximumAge: 60000
         });
       });
-
-      // Người dùng đã cho phép! Lưu lại vào localStorage -> lần sau truy cập lại KHÔNG hỏi nữa
-      localStorage.setItem('lazer_gps_allowed', 'true');
 
       const lat = pos.coords.latitude;
       const lon = pos.coords.longitude;
@@ -624,21 +598,8 @@ window.LazerApp = {
         lastVisit: Date.now(),
         lastVisitTime: new Date().toLocaleString('vi-VN', { hour12: false })
       });
-
-      if (!isSilent && window.showToast) {
-        window.showToast('Đã xác định vị trí GPS chính xác!');
-      }
     } catch (err) {
       console.warn('[GPS] Geolocation error or denied:', err);
-      if (err && err.code === 1) {
-        localStorage.removeItem('lazer_gps_allowed');
-        if (!isSilent && window.showToast) {
-          window.showToast('Bạn đã chặn quyền Vị trí. Hãy bấm vào biểu tượng 🔒 trên thanh địa chỉ để cho phép!');
-        }
-      }
-      if (!isSilent) {
-        sessionStorage.setItem('lazer_gps_session_skipped', 'true');
-      }
     }
   },
 

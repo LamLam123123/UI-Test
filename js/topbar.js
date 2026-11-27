@@ -2196,38 +2196,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // Khởi chạy bộ lắng nghe IP Analytics
   initVisitorAnalytics();
 
-  /* ── GPS Permission Prompt Controller ─────────────────────── */
-  const gpsCard = document.getElementById('gps-prompt-card');
-  const btnGpsAllow = document.getElementById('btn-gps-allow');
-  const btnGpsSkip = document.getElementById('btn-gps-skip');
-  const btnGpsClose = document.getElementById('btn-gps-close');
-
-  function hideGpsPrompt() {
-    if (gpsCard) {
-      gpsCard.classList.remove('visible');
-      setTimeout(() => {
-        gpsCard.style.display = 'none';
-      }, 300);
-    }
-  }
-
-  btnGpsAllow?.addEventListener('click', () => {
-    hideGpsPrompt();
-    if (window.LazerApp && window.LazerApp.requestGpsLocation) {
-      window.LazerApp.requestGpsLocation(false);
-    }
-  });
-
-  btnGpsSkip?.addEventListener('click', () => {
-    hideGpsPrompt();
-    sessionStorage.setItem('lazer_gps_session_skipped', 'true');
-  });
-
-  btnGpsClose?.addEventListener('click', () => {
-    hideGpsPrompt();
-    sessionStorage.setItem('lazer_gps_session_skipped', 'true');
-  });
-
   /* ── FPS counter ───────────────────────────────────────── */
   const fpsV = document.getElementById('fps-val');
   const fpsM = document.getElementById('fps-ms');
