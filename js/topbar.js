@@ -1977,24 +1977,57 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ── Visitor IP & Market Analytics Controller (Admin) ────── */
   let cachedVisitors = [];
+  let cachedForeignKeys = [];
+
+  function isVietnamVisitor(v) {
+    if (!v) return false;
+    const cc = (v.countryCode || '').toUpperCase();
+    const c = (v.country || '').toLowerCase();
+    const addr = (v.address || '').toLowerCase();
+    if (cc === 'VN' || c.includes('vietnam') || c.includes('việt nam') || addr.includes('việt nam') || addr.includes('vietnam')) {
+      return true;
+    }
+    if (v.locationSource === 'GPS' && v.latitude && v.longitude) {
+      if (v.latitude >= 8.0 && v.latitude <= 23.5 && v.longitude >= 102.0 && v.longitude <= 110.0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function processVisitorSnapshot(snap) {
+    const data = snap.val() || {};
+    const allEntries = Object.entries(data).map(([key, val]) => ({ ...val, _fbKey: key }));
+    cachedVisitors = allEntries.filter(isVietnamVisitor);
+    cachedForeignKeys = allEntries.filter(v => !isVietnamVisitor(v)).map(v => v._fbKey);
+
+    // Sắp xếp người mới nhất lên đầu (không giới hạn số lượng)
+    cachedVisitors.sort((a, b) => (b.lastVisit || 0) - (a.lastVisit || 0));
+
+    const countEl = document.getElementById('ov-tab-ip-count');
+    if (countEl) countEl.textContent = cachedVisitors.length;
+
+    const cleanBtn = document.getElementById('btn-clean-foreign-ips');
+    const foreignCountEl = document.getElementById('foreign-ip-count');
+    if (cleanBtn && foreignCountEl) {
+      if (cachedForeignKeys.length > 0) {
+        foreignCountEl.textContent = cachedForeignKeys.length;
+        cleanBtn.style.display = 'inline-flex';
+      } else {
+        cleanBtn.style.display = 'none';
+      }
+    }
+
+    renderVisitorAnalyticsTable();
+    renderVisitorAnalyticsStats();
+  }
 
   function initVisitorAnalytics() {
     const rtdb = (typeof db !== 'undefined' && db) ? db : (window.firebase ? firebase.database() : null);
     if (!rtdb) return;
 
-    // Realtime listener for visitors list
-    rtdb.ref('analytics/visitors').on('value', snap => {
-      const data = snap.val() || {};
-      cachedVisitors = Object.values(data);
-      // Sắp xếp người mới nhất lên đầu
-      cachedVisitors.sort((a, b) => (b.lastVisit || 0) - (a.lastVisit || 0));
-
-      const countEl = document.getElementById('ov-tab-ip-count');
-      if (countEl) countEl.textContent = cachedVisitors.length;
-
-      renderVisitorAnalyticsTable();
-      renderVisitorAnalyticsStats();
-    });
+    // Realtime listener for visitors list (không giới hạn số lượng)
+    rtdb.ref('analytics/visitors').on('value', processVisitorSnapshot);
 
     // Tìm kiếm / Lọc danh sách IP
     const searchInp = document.getElementById('inp-search-ip');
@@ -2006,14 +2039,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const refreshBtn = document.getElementById('btn-refresh-ips');
     refreshBtn?.addEventListener('click', () => {
       rtdb.ref('analytics/visitors').once('value', snap => {
-        const data = snap.val() || {};
-        cachedVisitors = Object.values(data);
-        cachedVisitors.sort((a, b) => (b.lastVisit || 0) - (a.lastVisit || 0));
-        renderVisitorAnalyticsTable();
-        renderVisitorAnalyticsStats();
-        if (window.showToast) window.showToast('Đã làm mới danh sách IP!');
-        else alert('Đã làm mới danh sách IP!');
+        processVisitorSnapshot(snap);
+        if (window.showToast) window.showToast('Đã làm mới danh sách IP Việt Nam!');
+        else alert('Đã làm mới danh sách IP Việt Nam!');
       });
+    });
+
+    // Nút dọn toàn bộ IP nước ngoài cũ khỏi Firebase
+    const cleanForeignBtn = document.getElementById('btn-clean-foreign-ips');
+    cleanForeignBtn?.addEventListener('click', async () => {
+      if (cachedForeignKeys.length === 0) return;
+      if (!confirm(`Xóa ${cachedForeignKeys.length} IP nước ngoài / bot cũ khỏi cơ sở dữ liệu Firebase?`)) return;
+      try {
+        const updates = {};
+        cachedForeignKeys.forEach(k => { updates[k] = null; });
+        await rtdb.ref('analytics/visitors').update(updates);
+        if (window.showToast) window.showToast(`Đã dọn sạch ${cachedForeignKeys.length} IP nước ngoài!`);
+      } catch (e) {
+        alert('Lỗi khi xóa IP nước ngoài: ' + e.message);
+      }
     });
 
     // Nút xóa toàn bộ lịch sử IP
@@ -2025,6 +2069,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
           await rtdb.ref('analytics/visitors').remove();
           cachedVisitors = [];
+          cachedForeignKeys = [];
           renderVisitorAnalyticsTable();
           renderVisitorAnalyticsStats();
           if (window.showToast) window.showToast('Đã xóa sạch lịch sử IP!');
@@ -2034,6 +2079,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } else {
         alert('Mật khẩu Admin không chính xác!');
+      }
+    });
+
+    // Xóa từng địa chỉ IP riêng lẻ trong bảng
+    const tbody = document.getElementById('ov-ip-table-body');
+    tbody?.addEventListener('click', async (e) => {
+      const delBtn = e.target.closest('.btn-del-single-ip');
+      if (!delBtn) return;
+      const fbKey = delBtn.dataset.fbkey;
+      const ipStr = delBtn.dataset.ip || fbKey;
+      if (!fbKey) return;
+      if (!confirm(`Bạn có chắc muốn xóa địa chỉ IP "${ipStr}" khỏi danh sách?`)) return;
+      try {
+        await rtdb.ref('analytics/visitors/' + fbKey).remove();
+        if (window.showToast) window.showToast(`Đã xóa IP ${ipStr}!`);
+      } catch (err) {
+        alert('Lỗi khi xóa IP: ' + err.message);
       }
     });
   }
@@ -2055,7 +2117,7 @@ document.addEventListener('DOMContentLoaded', () => {
     cachedVisitors.forEach(v => {
       const hits = Number(v.visitCount) || 1;
       totalHits += hits;
-      if (v.device === 'Mobile' || v.device === 'Điện thoại') {
+      if (v.deviceType === 'Mobile' || v.deviceType === 'Tablet' || v.device === 'Mobile' || v.device === 'Điện thoại') {
         mobileCount++;
       }
       const locKey = (v.city && v.city !== 'Không rõ') ? v.city : (v.region || v.country || 'Khác');
@@ -2153,7 +2215,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const mapBtn = mapUrl
         ? `<a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="ip-map-link" title="Xem vị trí trên Google Maps">📍 Bản đồ</a>`
-        : `<span style="color:var(--lazer-text-muted); font-size:11px;">--</span>`;
+        : '';
+
+      const delBtn = `<button type="button" class="btn-del-single-ip" data-fbkey="${v._fbKey || ''}" data-ip="${v.ip || ''}" title="Xóa địa chỉ IP này">🗑️</button>`;
 
       html += `
         <tr>
@@ -2185,7 +2249,12 @@ document.addEventListener('DOMContentLoaded', () => {
           </td>
           <td style="text-align: center;"><span class="ip-hits-badge">${v.visitCount || 1}</span></td>
           <td style="font-size:12px; color:var(--lazer-text-muted);">${timeText}</td>
-          <td style="text-align: center;">${mapBtn}</td>
+          <td style="text-align: center;">
+            <div class="ip-actions-cell">
+              ${mapBtn}
+              ${delBtn}
+            </div>
+          </td>
         </tr>
       `;
     });

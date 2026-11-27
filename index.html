@@ -284,8 +284,7 @@
                 <button type="button" class="lz-btn lz-btn-s" id="btn-test-bg" title="Kiểm tra link trước">Xem
                   thử</button>
               </div>
-              <span class="ov-hint">Hỗ trợ Video nền (.mp4, .webm) hoặc Ảnh (.jpg, .png). Để trống = nền hiệu ứng Tam
-                giác osu! mặc định.</span>
+              <span class="ov-hint">Hỗ trợ Video nền (.mp4, .webm) hoặc Ảnh (.jpg, .png)mặc định.</span>
             </div>
 
             <!-- Preview box -->
@@ -446,12 +445,14 @@
             </div>
             <div class="ov-metric-card">
               <div class="ov-metric-label">THỊ TRƯỜNG CHỦ YẾU</div>
-              <div class="ov-metric-val" id="ip-stat-top-loc" style="font-size: 15px; color: var(--lazer-yellow);">Đang tải...</div>
+              <div class="ov-metric-val" id="ip-stat-top-loc" style="font-size: 15px; color: var(--lazer-yellow);">Đang
+                tải...</div>
               <div class="ov-metric-sub" id="ip-stat-top-loc-sub">Khu vực có nhiều khách nhất</div>
             </div>
             <div class="ov-metric-card">
               <div class="ov-metric-label">THIẾT BỊ SỬ DỤNG</div>
-              <div class="ov-metric-val" id="ip-stat-device" style="font-size: 14px; color: var(--lazer-cyan);">PC: 0% | Mobile: 0%</div>
+              <div class="ov-metric-val" id="ip-stat-device" style="font-size: 14px; color: var(--lazer-cyan);">PC: 0% |
+                Mobile: 0%</div>
               <div class="ov-metric-sub">Tỉ lệ khách truy cập</div>
             </div>
           </div>
@@ -459,12 +460,22 @@
           <!-- Search and controls bar -->
           <div class="ov-analytics-toolbar">
             <div class="ov-search-box">
-              <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-              <input type="text" id="inp-search-ip" class="ov-input" placeholder="Tìm kiếm theo IP, Tỉnh/Thành phố, Quốc gia, Nhà mạng...">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+              </svg>
+              <input type="text" id="inp-search-ip" class="ov-input"
+                placeholder="Tìm kiếm theo IP, Tỉnh/Thành phố, Nhà mạng tại Việt Nam...">
             </div>
             <div class="ov-toolbar-btns">
-              <button type="button" class="lz-btn lz-btn-s" id="btn-refresh-ips" title="Tải lại dữ liệu">🔄 Làm mới</button>
-              <button type="button" class="lz-btn lz-btn-s" id="btn-clear-ips" style="color:var(--lazer-red); border-color: rgba(255,100,100,.3);" title="Xóa lịch sử IP">🗑️ Xóa danh sách</button>
+              <button type="button" class="lz-btn lz-btn-s" id="btn-clean-foreign-ips"
+                style="display:none; color:var(--lazer-yellow); border-color: rgba(255,204,0,.35);"
+                title="Xóa các IP ngoài Việt Nam đã lưu trước đó">🧹 Dọn IP nước ngoài (<span id="foreign-ip-count">0</span>)</button>
+              <button type="button" class="lz-btn lz-btn-s" id="btn-refresh-ips" title="Tải lại dữ liệu">🔄 Làm
+                mới</button>
+              <button type="button" class="lz-btn lz-btn-s" id="btn-clear-ips"
+                style="color:var(--lazer-red); border-color: rgba(255,100,100,.3);" title="Xóa toàn bộ lịch sử IP">🗑️ Xóa tất
+                cả</button>
             </div>
           </div>
 
@@ -476,12 +487,12 @@
                   <tr>
                     <th style="width: 40px;">#</th>
                     <th style="width: 170px;">THIẾT BỊ / MÃ MÁY</th>
-                    <th style="width: 130px;">IP CÔNG KHAI</th>
+                    <th style="width: 140px;">IP CÔNG KHAI</th>
                     <th>VỊ TRÍ / THỊ TRƯỜNG</th>
                     <th>NHÀ MẠNG (ISP)</th>
-                    <th style="width: 70px; text-align: center;">LƯỢT</th>
-                    <th style="width: 135px;">LẦN CUỐI GHÉ</th>
-                    <th style="width: 85px; text-align: center;">BẢN ĐỒ</th>
+                    <th style="width: 65px; text-align: center;">LƯỢT</th>
+                    <th style="width: 140px;">LẦN CUỐI GHÉ</th>
+                    <th style="width: 140px; text-align: center;">THAO TÁC</th>
                   </tr>
                 </thead>
                 <tbody id="ov-ip-table-body">

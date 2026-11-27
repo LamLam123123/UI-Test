@@ -3927,7 +3927,7 @@ body.sb-open .music-lyrics-bubble,
 .ov-ip-table-wrap {
   width: 100%;
   overflow-x: auto;
-  max-height: 420px;
+  max-height: 60vh;
   overflow-y: auto;
 }
 
@@ -4096,6 +4096,14 @@ body.sb-open .music-lyrics-bubble,
   font-size: 12px;
 }
 
+.ip-actions-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
 .ip-map-link {
   display: inline-flex;
   align-items: center;
@@ -4108,6 +4116,7 @@ body.sb-open .music-lyrics-bubble,
   text-decoration: none;
   font-size: 11px;
   font-weight: 600;
+  white-space: nowrap;
   transition: all 0.2s;
 }
 
@@ -4116,6 +4125,27 @@ body.sb-open .music-lyrics-bubble,
   border-color: var(--lazer-pink);
   color: #fff;
   box-shadow: 0 0 10px rgba(255, 102, 170, 0.4);
+}
+
+.btn-del-single-ip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(255, 80, 80, 0.12);
+  border: 1px solid rgba(255, 80, 80, 0.3);
+  color: #ff6b6b;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-del-single-ip:hover {
+  background: rgba(255, 80, 80, 0.85);
+  border-color: #ff5050;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(255, 80, 80, 0.4);
 }
 
 .ov-ip-empty {

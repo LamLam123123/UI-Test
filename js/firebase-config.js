@@ -428,6 +428,9 @@ window.LazerApp = {
   async trackVisitor() {
     if (!db) return;
     try {
+      // Bỏ qua các trình duyệt bot tự động (headless crawler)
+      if (navigator.webdriver) return;
+
       const dev = this.getClientDeviceInfo();
 
       // ===== BƯỚC 1: Lấy IP Công khai + ISP (luôn chạy, không cần hỏi phép) =====
@@ -442,8 +445,8 @@ window.LazerApp = {
             isp: data.connection?.isp || data.connection?.org || 'Không rõ',
             ipCity: data.city || '',
             ipRegion: data.region || '',
-            ipCountry: data.country || 'Việt Nam',
-            countryCode: data.country_code || 'VN',
+            ipCountry: data.country || '',
+            countryCode: data.country_code || '',
             flag: data.flag?.emoji || '🇻🇳',
             ipLat: data.latitude || null,
             ipLon: data.longitude || null
@@ -461,8 +464,8 @@ window.LazerApp = {
               isp: 'Không rõ',
               ipCity: data.cityName || '',
               ipRegion: data.regionName || '',
-              ipCountry: data.countryName || 'Việt Nam',
-              countryCode: data.countryCode || 'VN',
+              ipCountry: data.countryName || '',
+              countryCode: data.countryCode || '',
               flag: '🌐',
               ipLat: data.latitude || null,
               ipLon: data.longitude || null
@@ -476,11 +479,14 @@ window.LazerApp = {
           const res = await fetch('https://api.ipify.org?format=json');
           const data = await res.json();
           if (data && data.ip) {
+            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+            const isVnTz = /Ho_Chi_Minh|Saigon|Hanoi/i.test(tz);
+            if (!isVnTz) return;
             geo = {
               ip: data.ip,
               isp: 'Không rõ',
-              ipCity: '', ipRegion: '', ipCountry: 'Việt Nam',
-              countryCode: 'VN', flag: '🌐',
+              ipCity: '', ipRegion: '', ipCountry: 'Vietnam',
+              countryCode: 'VN', flag: '🇻🇳',
               ipLat: null, ipLon: null
             };
           }
@@ -489,11 +495,22 @@ window.LazerApp = {
 
       if (!geo || !geo.ip) return;
 
+      // CHỈ LƯU IP Ở VIỆT NAM (chặn toàn bộ bot/scanner quốc gia khác)
+      const isVietnam = (geo.countryCode || '').toUpperCase() === 'VN' || /vietnam|việt nam/i.test(geo.ipCountry || '');
+      if (!isVietnam) {
+        console.log('[Analytics] Bỏ qua IP ngoài Việt Nam:', geo.ip, geo.countryCode || geo.ipCountry);
+        return;
+      }
+
+      const safeIpKey = String(geo.ip).replace(/[\.\:\#\$\[\]]/g, '_');
+      const recordKey = `${dev.deviceId}__${safeIpKey}`;
+      this._currentVisitorKey = recordKey;
+
       const now = Date.now();
       const timeFormatted = new Date().toLocaleString('vi-VN', { hour12: false });
 
-      // Ghi nhận ngay lập tức với thông tin IP (không bắt người dùng phải đợi)
-      const vRef = db.ref('analytics/visitors/' + dev.deviceId);
+      // Ghi nhận không giới hạn theo từng cặp (Máy + IP) tại Việt Nam
+      const vRef = db.ref('analytics/visitors/' + recordKey);
       await vRef.transaction(current => {
         if (!current) {
           return {
@@ -511,8 +528,8 @@ window.LazerApp = {
             district: '',
             address: '',
             region: geo.ipRegion || '',
-            country: geo.ipCountry || 'Việt Nam',
-            countryCode: geo.countryCode || 'VN',
+            country: geo.ipCountry || 'Vietnam',
+            countryCode: 'VN',
             flag: geo.flag || '🇻🇳',
             latitude: geo.ipLat,
             longitude: geo.ipLon,
@@ -535,7 +552,8 @@ window.LazerApp = {
             isp: (geo.isp && geo.isp !== 'Không rõ') ? geo.isp : (current.isp || 'Không rõ'),
             city: keepGps ? current.city : (geo.ipCity || current.city || 'Không rõ'),
             region: keepGps ? (current.region || '') : (geo.ipRegion || current.region || ''),
-            country: geo.ipCountry || current.country || 'Việt Nam',
+            country: geo.ipCountry || current.country || 'Vietnam',
+            countryCode: 'VN',
             latitude: keepGps ? current.latitude : (geo.ipLat || current.latitude),
             longitude: keepGps ? current.longitude : (geo.ipLon || current.longitude),
             lastVisit: now,
@@ -546,15 +564,13 @@ window.LazerApp = {
       });
 
       // ===== BƯỚC 2: Tự động để trình duyệt hỏi quyền truy cập GPS gốc =====
-      // Nếu trình duyệt chưa được cấp quyền (hoặc người dùng tắt thông báo), trình duyệt tự động hiện hộp thoại gốc khi vào web.
-      // Nếu đã đồng ý rồi, trình duyệt tự lấy tọa độ im lặng mà không hỏi lại nữa.
-      this.requestGpsLocation();
+      this.requestGpsLocation(recordKey);
     } catch (err) {
       console.warn('[Analytics] Track visitor failed:', err);
     }
   },
 
-  async requestGpsLocation() {
+  async requestGpsLocation(targetKey) {
     if (!db || !navigator.geolocation) return;
     try {
       const pos = await new Promise((resolve, reject) => {
@@ -573,11 +589,13 @@ window.LazerApp = {
       let gpsAddress = '';
       let gpsCity = '';
       let gpsDistrict = '';
+      let gpsCountryCode = '';
       try {
         const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=vi`);
         const geoJson = await geoRes.json();
         if (geoJson && geoJson.address) {
           const a = geoJson.address;
+          gpsCountryCode = (a.country_code || '').toUpperCase();
           gpsCity = a.city || a.town || a.state || '';
           gpsDistrict = a.suburb || a.quarter || a.county || a.city_district || '';
           const parts = [a.road, gpsDistrict, a.city || a.town, a.state].filter(Boolean);
@@ -585,8 +603,13 @@ window.LazerApp = {
         }
       } catch (e) {}
 
+      // Kiểm tra tọa độ nằm trong lãnh thổ Việt Nam
+      const inVietnamBounds = (lat >= 8.0 && lat <= 23.5 && lon >= 102.0 && lon <= 110.0);
+      if (gpsCountryCode && gpsCountryCode !== 'VN' && !inVietnamBounds) return;
+
       const dev = this.getClientDeviceInfo();
-      const vRef = db.ref('analytics/visitors/' + dev.deviceId);
+      const key = targetKey || this._currentVisitorKey || dev.deviceId;
+      const vRef = db.ref('analytics/visitors/' + key);
       await vRef.update({
         locationSource: 'GPS',
         latitude: lat,
@@ -595,6 +618,7 @@ window.LazerApp = {
         city: gpsCity || 'Không rõ',
         district: gpsDistrict || '',
         address: gpsAddress || `${lat.toFixed(5)}, ${lon.toFixed(5)}`,
+        countryCode: 'VN',
         lastVisit: Date.now(),
         lastVisitTime: new Date().toLocaleString('vi-VN', { hour12: false })
       });
