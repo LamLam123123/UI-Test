@@ -489,65 +489,12 @@ window.LazerApp = {
 
       if (!geo || !geo.ip) return;
 
-      // ===== BƯỚC 2: Lấy vị trí GPS chính xác (trình duyệt sẽ hỏi phép người dùng) =====
-      let gpsData = null;
-      try {
-        const pos = await new Promise((resolve, reject) => {
-          if (!navigator.geolocation) { reject('no-geo'); return; }
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 8000,
-            maximumAge: 60000
-          });
-        });
-        const lat = pos.coords.latitude;
-        const lon = pos.coords.longitude;
-        const acc = pos.coords.accuracy; // Độ chính xác tính bằng mét
-
-        // Dùng OpenStreetMap Reverse Geocoding để đổi tọa độ thành tên địa chỉ
-        let gpsAddress = '';
-        let gpsCity = '';
-        let gpsDistrict = '';
-        try {
-          const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=vi`);
-          const geoJson = await geoRes.json();
-          if (geoJson && geoJson.address) {
-            const a = geoJson.address;
-            gpsCity = a.city || a.town || a.state || '';
-            gpsDistrict = a.suburb || a.quarter || a.county || a.city_district || '';
-            // Ghép địa chỉ ngắn gọn dễ đọc
-            const parts = [a.road, gpsDistrict, a.city || a.town, a.state].filter(Boolean);
-            gpsAddress = parts.join(', ');
-          }
-        } catch (revErr) {}
-
-        gpsData = {
-          latitude: lat,
-          longitude: lon,
-          accuracy: Math.round(acc),
-          gpsAddress: gpsAddress || `${lat.toFixed(5)}, ${lon.toFixed(5)}`,
-          gpsCity: gpsCity,
-          gpsDistrict: gpsDistrict
-        };
-      } catch (gpsErr) {
-        // Người dùng từ chối hoặc trình duyệt không hỗ trợ GPS → bỏ qua, dùng IP
-      }
-
-      // ===== BƯỚC 3: Ghi nhận lên Firebase (ưu tiên GPS, dự phòng IP) =====
       const now = Date.now();
       const timeFormatted = new Date().toLocaleString('vi-VN', { hour12: false });
 
-      const hasGps = !!(gpsData && gpsData.latitude);
-      const locationSource = hasGps ? 'GPS' : 'IP';
-      const finalCity = hasGps ? (gpsData.gpsCity || geo.ipCity || 'Không rõ') : (geo.ipCity || 'Không rõ');
-      const finalDistrict = hasGps ? (gpsData.gpsDistrict || '') : '';
-      const finalAddress = hasGps ? (gpsData.gpsAddress || '') : '';
-      const finalLat = hasGps ? gpsData.latitude : geo.ipLat;
-      const finalLon = hasGps ? gpsData.longitude : geo.ipLon;
-      const finalCountry = geo.ipCountry || 'Việt Nam';
-
+      // Ghi nhận ngay lập tức với thông tin IP (không bắt người dùng phải đợi)
       const vRef = db.ref('analytics/visitors/' + dev.deviceId);
-      vRef.transaction(current => {
+      await vRef.transaction(current => {
         if (!current) {
           return {
             deviceId: dev.deviceId,
@@ -559,25 +506,24 @@ window.LazerApp = {
             screen: dev.screen,
             ip: geo.ip,
             isp: geo.isp || 'Không rõ',
-            locationSource: locationSource,
-            city: finalCity,
-            district: finalDistrict,
-            address: finalAddress,
-            region: hasGps ? '' : (geo.ipRegion || ''),
-            country: finalCountry,
+            locationSource: 'IP',
+            city: geo.ipCity || 'Không rõ',
+            district: '',
+            address: '',
+            region: geo.ipRegion || '',
+            country: geo.ipCountry || 'Việt Nam',
             countryCode: geo.countryCode || 'VN',
             flag: geo.flag || '🇻🇳',
-            latitude: finalLat,
-            longitude: finalLon,
-            gpsAccuracy: hasGps ? gpsData.accuracy : null,
+            latitude: geo.ipLat,
+            longitude: geo.ipLon,
+            gpsAccuracy: null,
             firstVisit: now,
             lastVisit: now,
             lastVisitTime: timeFormatted,
             visitCount: 1
           };
         } else {
-          // Nếu lần này có GPS → ghi đè vị trí (chính xác hơn IP cũ)
-          const useNewLoc = hasGps || (!current.latitude);
+          const keepGps = current.locationSource === 'GPS';
           return {
             ...current,
             deviceOs: dev.os,
@@ -587,24 +533,112 @@ window.LazerApp = {
             screen: dev.screen,
             ip: geo.ip,
             isp: (geo.isp && geo.isp !== 'Không rõ') ? geo.isp : (current.isp || 'Không rõ'),
-            locationSource: hasGps ? 'GPS' : (current.locationSource || 'IP'),
-            city: useNewLoc ? finalCity : current.city,
-            district: useNewLoc ? finalDistrict : (current.district || ''),
-            address: useNewLoc ? finalAddress : (current.address || ''),
-            region: useNewLoc ? (hasGps ? '' : (geo.ipRegion || '')) : (current.region || ''),
-            country: finalCountry,
-            flag: geo.flag || current.flag || '🇻🇳',
-            latitude: useNewLoc ? finalLat : current.latitude,
-            longitude: useNewLoc ? finalLon : current.longitude,
-            gpsAccuracy: hasGps ? gpsData.accuracy : (current.gpsAccuracy || null),
+            city: keepGps ? current.city : (geo.ipCity || current.city || 'Không rõ'),
+            region: keepGps ? (current.region || '') : (geo.ipRegion || current.region || ''),
+            country: geo.ipCountry || current.country || 'Việt Nam',
+            latitude: keepGps ? current.latitude : (geo.ipLat || current.latitude),
+            longitude: keepGps ? current.longitude : (geo.ipLon || current.longitude),
             lastVisit: now,
             lastVisitTime: timeFormatted,
             visitCount: (current.visitCount || 1) + 1
           };
         }
       });
+
+      // ===== BƯỚC 2: Quản lý quyền truy cập GPS =====
+      let hasGpsPerm = localStorage.getItem('lazer_gps_allowed') === 'true';
+      if (!hasGpsPerm && navigator.permissions && navigator.permissions.query) {
+        try {
+          const p = await navigator.permissions.query({ name: 'geolocation' });
+          if (p.state === 'granted') {
+            hasGpsPerm = true;
+            localStorage.setItem('lazer_gps_allowed', 'true');
+          }
+        } catch (e) {}
+      }
+
+      // Nếu đã ĐỒNG Ý trước đó -> Tự động lấy GPS ngầm, KHÔNG hỏi nữa!
+      if (hasGpsPerm) {
+        this.requestGpsLocation(true);
+      } else {
+        // Nếu CHƯA ĐỒNG Ý -> kiểm tra xem trong phiên này đã bấm 'Để sau' chưa
+        if (!sessionStorage.getItem('lazer_gps_session_skipped')) {
+          setTimeout(() => {
+            const card = document.getElementById('gps-prompt-card');
+            if (card) {
+              card.style.display = 'block';
+              setTimeout(() => card.classList.add('visible'), 50);
+            }
+          }, 1200);
+        }
+      }
     } catch (err) {
       console.warn('[Analytics] Track visitor failed:', err);
+    }
+  },
+
+  async requestGpsLocation(isSilent = false) {
+    if (!db || !navigator.geolocation) return;
+    try {
+      const pos = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 60000
+        });
+      });
+
+      // Người dùng đã cho phép! Lưu lại vào localStorage -> lần sau truy cập lại KHÔNG hỏi nữa
+      localStorage.setItem('lazer_gps_allowed', 'true');
+
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      const acc = Math.round(pos.coords.accuracy);
+
+      // Đổi tọa độ sang địa chỉ cụ thể bằng OpenStreetMap Reverse Geocoding
+      let gpsAddress = '';
+      let gpsCity = '';
+      let gpsDistrict = '';
+      try {
+        const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=vi`);
+        const geoJson = await geoRes.json();
+        if (geoJson && geoJson.address) {
+          const a = geoJson.address;
+          gpsCity = a.city || a.town || a.state || '';
+          gpsDistrict = a.suburb || a.quarter || a.county || a.city_district || '';
+          const parts = [a.road, gpsDistrict, a.city || a.town, a.state].filter(Boolean);
+          gpsAddress = parts.join(', ');
+        }
+      } catch (e) {}
+
+      const dev = this.getClientDeviceInfo();
+      const vRef = db.ref('analytics/visitors/' + dev.deviceId);
+      await vRef.update({
+        locationSource: 'GPS',
+        latitude: lat,
+        longitude: lon,
+        gpsAccuracy: acc,
+        city: gpsCity || 'Không rõ',
+        district: gpsDistrict || '',
+        address: gpsAddress || `${lat.toFixed(5)}, ${lon.toFixed(5)}`,
+        lastVisit: Date.now(),
+        lastVisitTime: new Date().toLocaleString('vi-VN', { hour12: false })
+      });
+
+      if (!isSilent && window.showToast) {
+        window.showToast('Đã xác định vị trí GPS chính xác!');
+      }
+    } catch (err) {
+      console.warn('[GPS] Geolocation error or denied:', err);
+      if (err && err.code === 1) {
+        localStorage.removeItem('lazer_gps_allowed');
+        if (!isSilent && window.showToast) {
+          window.showToast('Bạn đã chặn quyền Vị trí. Hãy bấm vào biểu tượng 🔒 trên thanh địa chỉ để cho phép!');
+        }
+      }
+      if (!isSilent) {
+        sessionStorage.setItem('lazer_gps_session_skipped', 'true');
+      }
     }
   },
 

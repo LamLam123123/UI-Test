@@ -868,6 +868,28 @@
     <span class="toast-msg" id="toast-msg">Đang cập nhật tính năng...</span>
   </div>
 
+  <!-- ── 6. GPS LOCATION PERMISSION BANNER ─────────────────────── -->
+  <div class="gps-prompt-card" id="gps-prompt-card" style="display: none;">
+    <div class="gps-prompt-inner">
+      <div class="gps-prompt-icon-col">
+        <div class="gps-icon-circle">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+          </svg>
+        </div>
+      </div>
+      <div class="gps-prompt-body">
+        <div class="gps-prompt-title">Xác định vị trí chính xác</div>
+        <div class="gps-prompt-desc">Cho phép truy cập vị trí để hỗ trợ định vị khu vực giao hàng và tìm kiếm chuẩn xác nhất.</div>
+        <div class="gps-prompt-btns">
+          <button type="button" class="gps-btn gps-btn-skip" id="btn-gps-skip">Để sau</button>
+          <button type="button" class="gps-btn gps-btn-allow" id="btn-gps-allow">📍 Cho phép</button>
+        </div>
+      </div>
+      <button type="button" class="gps-close-btn" id="btn-gps-close" title="Đóng">&times;</button>
+    </div>
+  </div>
+
   <!-- ── SCRIPTS ────────────────────────────────────────────── -->
   <script src="js/firebase-config.js"></script>
   <script src="js/lazer-triangles.js"></script>
